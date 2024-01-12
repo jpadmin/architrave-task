@@ -1,0 +1,4 @@
+# Assumes that the role for accessing AWS EKS config is attached to the node directly
+
+- name: Add the cluster config for EKS to control node
+  ansible.builtin.command: aws eks --region {{ aws_region }} update-kubeconfig --name {{ aws_cluster_name }}

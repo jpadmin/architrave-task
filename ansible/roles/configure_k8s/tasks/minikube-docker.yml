@@ -1,0 +1,25 @@
+# Expected for minikube control node using ansible
+
+- name: Copy minikube Client certificate
+  ansible.builtin.copy:
+    src: client.crt
+    dest: ~/.kube/client.crt
+    mode: '0644'
+
+- name: Copy minikube CA certificate
+  ansible.builtin.copy:
+    src: ca.crt
+    dest: ~/.kube/ca.crt
+    mode: '0644'
+
+- name: Copy minikube Client key
+  ansible.builtin.copy:
+    src: client.key
+    dest: ~/.kube/client.key
+    mode: '0600'
+
+- name: Generate minikube kubeconfig a file to ~/.kube/config
+  ansible.builtin.template:
+    src: kube_config.j2
+    dest: ~/.kube/config
+    mode: '0644'

@@ -1,0 +1,12 @@
+- name: Run apt update
+  ansible.builtin.apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+
+- name: Install the latest version of aws-cli and pip using apt
+  ansible.builtin.apt:
+    name: 
+      - awscli
+      - python3-pip
+    state: latest

@@ -1,0 +1,80 @@
+- name: Applying av-app {{ component }} DEPLOY
+  kubernetes.core.k8s:
+    state: "{{ action }}"
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: av-app-{{ component }}-{{ version }}
+        namespace: "{{ namespace }}"
+        labels:
+          app: av-app
+          component: "{{ component }}"
+          version: "{{ version }}"
+          env: "{{ env }}"
+      spec:
+        selector:
+          matchLabels:
+            app: av-app
+            component: "{{ component }}"
+            version: "{{ version }}"
+            env: "{{ env }}"
+        replicas: 2
+        template:
+          metadata:
+            labels:
+              app: av-app
+              component: "{{ component }}"
+              version: "{{ version }}"
+              env: "{{ env }}"
+          spec:
+            containers:
+            - name: av-{{ component }}
+              image: johnpaulkj/flask-{{ component }}:{{ version }}
+              imagePullPolicy: Always
+              env:
+                - name: "{{ env_var_name }}"
+                  value: av-app-{{ dependent }}-{{ version }}-svc
+              ports:
+              - name: app-port
+                containerPort: "{{ port }}"
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: app-port
+                initialDelaySeconds: 30
+                timeoutSeconds: 10
+                failureThreshold: 5
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: app-port
+                initialDelaySeconds: 30
+                timeoutSeconds: 30
+                failureThreshold: 15
+
+- name: Applying av-app {{ component }} service
+  kubernetes.core.k8s:
+    state: "{{ action }}"
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: av-app-{{ component }}-{{ version }}-svc
+        namespace: "{{ namespace }}"
+        labels:
+          app: av-app
+          component: "{{ component }}"
+          version: "{{ version }}"
+          env: "{{ env }}"
+      spec:
+        selector:
+          app: av-app
+          component: "{{ component }}"
+          version: "{{ version }}"
+          env: "{{ env }}"
+        ports:
+          - name: http
+            protocol: TCP
+            port: "{{ port }}"
+            targetPort: "{{ port }}"

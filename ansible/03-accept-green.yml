@@ -1,0 +1,68 @@
+- hosts: localhost
+  connection: local
+  become: true
+  roles:
+    - base
+
+  tasks:
+    - include_role:
+        name: configure_k8s
+      vars:
+        k8s_provider: minikube 
+        minikube_local_api_server_ip: 192.168.100.143
+        minikube_local_api_server_port: 65408
+        #k8s_provider: eks
+        #aws_region: eu-west-1
+        #aws_cluster_name: av-staging
+
+    - block:
+        - name: Getting av-app blue version from state
+          ansible.builtin.command: kubectl get cm av-app-state -o jsonpath='{.data.version}'
+          register: blue_version_command
+      rescue:
+        - fail:
+            msg: >
+              Error! the application does not exist or state has some problem
+
+    - block:
+        - name: Confirm av-app application green state exist
+          ansible.builtin.command: kubectl get cm av-app-green-state -o jsonpath='{.data.green}'
+          register: green_status
+      rescue:
+        - fail:
+            msg: >
+              Oops! the green stack does not already exist
+
+    - set_fact:
+        blue_version_number: "{{ blue_version_command.stdout | int + 0  }}"
+    - set_fact:
+        green_version_number: "{{ blue_version_command.stdout | int + 1  }}"
+
+    - name: Route LB traffic to v{{ green_version_number }} version
+      include_role:
+        name: kubernetes_lb
+      vars:
+        acm_arn: arn:aws:acm:us-east-1:377533143757:certificate/eb6da30a-73cd-4a0b-ac0f-089bf3cd3798
+        version: v{{ green_version_number }}
+        namespace: default
+        env: staging
+
+    - name: Deleting the av-app with v{{ blue_version_number }} version
+      include_role:
+        name: kubernetes_app
+      vars:
+        version: v{{ blue_version_number }}
+        pvc_storage_class: standard
+        namespace: default
+        env: staging
+        action: absent
+
+    - name: Delete the av-app db volume with v{{ blue_version_number }} version (Blue)
+      ansible.builtin.command: kubectl delete pvc av-app-db-v{{ blue_version_number }}-av-app-db-v{{ blue_version_number }}-0
+
+    - name: Release the green stack lock
+      ansible.builtin.command: kubectl delete cm av-app-green-state
+
+    - name: Update av-app v{{ green_version_number }} as the new blue stack in the state
+      ansible.builtin.shell: kubectl create cm av-app-state --from-literal=version={{ green_version_number }} --dry-run=client -o yaml | kubectl replace -f -
+    

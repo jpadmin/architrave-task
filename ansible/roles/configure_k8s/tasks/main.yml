@@ -1,0 +1,37 @@
+- name: Delete the kubeconfig entries
+  ansible.builtin.file:
+    state: absent
+    path: ~/.kube/
+
+- name: Recreate kubeconfig directory
+  ansible.builtin.file:
+    state: directory
+    path: ~/.kube/
+    mode: 0755
+
+- include_tasks: aws-node.yml
+  when: k8s_provider == 'eks'
+
+- include_tasks: minikube-docker.yml
+  when: k8s_provider == 'minikube'
+
+- name: Testing by creating a k8s namespace
+  kubernetes.core.k8s:
+    name: test-system
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Delete the test k8s namespace
+  kubernetes.core.k8s:
+    name: test-system
+    api_version: v1
+    kind: Namespace
+    state: absent
+
+- name: Retrieve the cluster name
+  ansible.builtin.command: kubectl config view --minify -o jsonpath='{.clusters[].name}'
+  register: cluster_name
+
+- name: Print Connected cluster name
+  debug: msg="Config and test done for {{ cluster_name.stdout }}"

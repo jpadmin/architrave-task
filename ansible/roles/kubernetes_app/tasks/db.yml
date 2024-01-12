@@ -1,0 +1,93 @@
+- name: Applying av-app db STS
+  kubernetes.core.k8s:
+    state: "{{ action }}"
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        namespace: "{{ namespace }}"
+        labels:
+          app: av-app
+          component: db
+          version: "{{ version }}"
+          env: "{{ env }}"
+        name: av-app-db-{{ version }}
+      spec:
+        persistentVolumeClaimRetentionPolicy:
+          whenDeleted: Retain
+          whenScaled: Delete
+        replicas: 1
+        selector:
+          matchLabels:
+            app: av-app
+            component: db
+            version: "{{ version }}"
+            env: "{{ env }}"
+        serviceName: db
+        volumeClaimTemplates:
+        - metadata:
+            name: av-app-db-{{ version }}
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 500Mi
+            storageClassName: "{{ pvc_storage_class }}"
+        template:
+          metadata:
+            labels:
+              app: av-app
+              component: db
+              version: "{{ version }}"
+              env: "{{ env }}"
+          spec:
+            containers:
+            - name: av-db
+              image: johnpaulkj/mysql-db:{{ version }}
+              imagePullPolicy: Always
+              livenessProbe:
+                tcpSocket:
+                  port: mysql
+                initialDelaySeconds: 60
+                periodSeconds: 30
+                timeoutSeconds: 30
+              ports:
+                - containerPort: 3306
+                  name: mysql
+                  protocol: TCP
+              readinessProbe:
+                tcpSocket:
+                  port: mysql
+                initialDelaySeconds: 60
+                periodSeconds: 10
+                timeoutSeconds: 30
+              volumeMounts:
+              - name: av-app-db-{{ version }}
+                mountPath: /var/lib/mysql
+                subPath: mysql
+
+- name: Applying av-app db service
+  kubernetes.core.k8s:
+    state: "{{ action }}"
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: av-app-db-{{ version }}-svc
+        namespace: "{{ namespace }}"
+        labels:
+          app: av-app
+          component: db
+          version: "{{ version }}"
+          env: "{{ env }}"
+      spec:
+        selector:
+          app: av-app
+          component: db
+          version: "{{ version }}"
+          env: "{{ env }}"
+        ports:
+          - name: http
+            protocol: TCP
+            port: 3306
+            targetPort: 3306

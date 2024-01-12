@@ -1,0 +1,12 @@
+# k8s_provider: allows two values - eks / minikube 
+k8s_provider: undefined
+
+# aws_region: if eks, this variable points to region where eks is setup
+aws_region: undefined
+
+# aws_cluster_name: if eks, this variable points the name of the cluster
+aws_cluster_name: undefined
+
+# minikube details
+minikube_local_api_server_ip: undefined
+minikube_local_api_server_port: undefined

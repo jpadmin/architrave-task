@@ -1,0 +1,46 @@
+- hosts: localhost
+  connection: local
+  become: true
+  roles:
+    - base
+
+  tasks:
+    - include_role:
+        name: configure_k8s
+      vars:
+        k8s_provider: minikube 
+        minikube_local_api_server_ip: 192.168.100.143
+        minikube_local_api_server_port: 65408
+        #k8s_provider: eks
+        #aws_region: eu-west-1
+        #aws_cluster_name: av-staging
+
+    - block:
+        - name: Getting av-app blue version from state
+          ansible.builtin.command: kubectl get cm av-app-state -o jsonpath='{.data.version}'
+          register: blue_version_command
+      rescue:
+        - fail:
+            msg: >
+              Error! the application does not exist or state has some problem
+
+    - block:
+        - name: Creating av-app application green state
+          ansible.builtin.command: kubectl create cm av-app-green-state --from-literal=green=1
+      rescue:
+        - fail:
+            msg: >
+              Oops! the green stack already exist
+
+    - set_fact:
+        green_version_number: "{{ blue_version_command.stdout | int + 1  }}"
+
+    - name: Deploying the av-app with v{{green_version_number}} version
+      include_role:
+        name: kubernetes_app
+      vars:
+        version: v{{ green_version_number }}
+        pvc_storage_class: standard
+        namespace: default
+        env: staging
+        action: present

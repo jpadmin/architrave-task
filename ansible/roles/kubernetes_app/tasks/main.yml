@@ -1,0 +1,19 @@
+
+- include_tasks: db.yml
+  name: Creating DB Layer
+
+- include_tasks: deploy.yml
+  vars:
+    component: app
+    dependent: db
+    env_var_name: MYSQL_HOST
+    port: 5001
+  name: Creating APP Layer
+
+- include_tasks: deploy.yml
+  vars:
+    component: web
+    dependent: app
+    env_var_name: API_HOST
+    port: 5002
+  name: Creating WEB Layer

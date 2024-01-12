@@ -1,0 +1,11 @@
+- name: Run dnf update
+  ansible.builtin.dnf:
+    name=*
+    state=latest
+
+- name: Install the latest version of aws-cli and pip using dnf
+  ansible.builtin.dnf:
+    name: 
+      - awscli
+      - python3-pip
+    state: latest
