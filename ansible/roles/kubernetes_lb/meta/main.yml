@@ -1,0 +1,4 @@
+dependencies:
+  - role: kubernetes_ns
+    vars:
+      namespace: "{{ namespace }}"
